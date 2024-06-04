@@ -1,0 +1,349 @@
+# Review
+
+```{r}
+library(ROCR)
+library(MLmetrics)
+library(misaem) #https://cran.r-project.org/web/packages/misaem/index.html https://github.com/julierennes/misaem
+library(zoo)
+library(mice)
+```
+
+```{r}
+set.seed(0)
+```
+
+# Simulation Experience
+
+## MCAR
+
+### Setup
+
+We follow the setup describe in the paper. Check the section of the review for more information.
+
+```{r}
+n = 10000
+p = 5
+mu = c(1,2,3,4,5)
+sd = c(1,2,3,4,5)
+C = matrix(c(
+  1,   0.8, 0,   0,   0,
+  0.8, 1,   0,   0,   0,
+  0,   0,   1,   0.3, 0.6,
+  0,   0,   0.3, 1,   0.7,
+  0,   0,   0.6, 0.7, 1
+), nrow=p)
+Sigma = diag(sd)%*%C%*%diag(sd)
+
+beta = c(-0.2, 0.5, -0.3, 1, 0, -0.6)
+
+X.cc = matrix(rnorm(n*p, mu, Sigma), nrow=n)
+```
+
+Then, we can calculate $p(y_i=1|x_i, \beta)=\frac{exp(\beta_0+\sum_{j=1}^p \beta_j x_ij)}{1+exp(\beta_0+\sum_{j=1}^p \beta_j x_ij)}$ and draw the vector $y \in \{0,1\}^n$.
+
+```{r}
+p_y = 1/(1+exp(-beta[1]-X.cc%*%beta[2:6]))
+y = as.numeric(runif(n)<p_y)
+```
+
+In addition, we can randomly introduced $10\%$ missing values in the covariates first with a missing completely at random (MCAR) mechanism.
+
+```{r}
+patterns = runif(n*p)<0.10
+X.obs = X.cc
+X.obs[patterns] = NA
+```
+
+We want to make sure that, as in the course, this gives better results than by average imputation or by MICE.
+
+```{r}
+X.mean = na.aggregate(X.obs, FUN = mean)
+X.mice = mice(X.obs)
+X.mice = as.matrix(complete(X.mice))
+```
+
+Now we create a train and test set
+
+```{r}
+indx = sample(seq_len(nrow(X.cc)), size = round(0.7 * nrow(X.cc)))
+X.cc.train = X.cc[indx, ]
+X.cc.test = X.cc[-indx, ]
+X.obs.train = X.obs[indx, ]
+X.obs.test = X.obs[-indx, ]
+X.mean.train = X.mean[indx, ]
+X.mean.test = X.mean[-indx, ]
+X.mice.train = X.mice[indx, ]
+X.mice.test = X.mice[-indx, ]
+y.train = y[indx]
+y.test = y[-indx]
+```
+
+### Analyse of the complete case
+
+```{r}
+reg.cc = glm(y.train~., data=as.data.frame(X.cc.train), family = binomial(link = "logit"))
+summary(reg.cc)
+LL.cc = as.numeric(logLik(reg.cc))
+pred.cc.proba = predict(reg.cc, newdata=as.data.frame(X.cc.test),  type="response")
+pred.cc = ifelse(pred.cc.proba < 0.5, 0, 1)
+auc.cc = AUC(pred.cc, y.test)
+F1.cc = F1_Score(pred.cc, y.test)
+```
+
+### Analyse of the masked case
+
+##### SAEM
+
+```{r, warning=FALSE}
+reg.saem = miss.glm(y.train~., data=as.data.frame(X.obs.train))
+summary(reg.saem)
+LL.saem = reg.saem$ll
+pred.saem.proba = predict(reg.saem, newdata=as.data.frame(X.obs.test),  method = "map", type="")
+pred.saem = ifelse(pred.saem.proba < 0.5, 0, 1)
+auc.saem = AUC(pred.saem, y.test)
+F1.saem = F1_Score(pred.saem, y.test)
+```
+
+##### Imputation by average
+
+```{r}
+reg.mean = glm(y.train~., data=as.data.frame(X.mean.train), family = binomial(link = "logit"))
+summary(reg.mean)
+LL.mean = as.numeric(logLik(reg.mean))
+pred.mean.proba = predict(reg.mean, newdata=as.data.frame(X.mean.test),  type="response")
+pred.mean = ifelse(pred.mean.proba < 0.5, 0, 1)
+auc.mean = AUC(pred.mean, y.test)
+F1.mean = F1_Score(pred.mean, y.test)
+```
+
+##### MICE
+
+```{r}
+reg.mice = glm(y.train~., data=as.data.frame(X.mice.train), family = binomial(link = "logit"))
+summary(reg.mice)
+LL.mice = as.numeric(logLik(reg.mice))
+pred.mice.proba = predict(reg.mice, newdata=as.data.frame(X.mice.test),  type="response")
+pred.mice = ifelse(pred.mice.proba < 0.5, 0, 1)
+auc.mice = AUC(pred.mice, y.test)
+F1.mice = F1_Score(pred.mice, y.test)
+```
+
+### Summary
+
+```{r}
+sum = data.frame(
+  Données = c("Beta", "max LogLikelihood", "AUC", "F1 score"),
+  Complete_Case = c(paste("(", paste(round(reg.cc$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.cc, digits = 0) , round(auc.cc, digits = 2), round(F1.cc, digits = 3)),
+  SAEM = c(paste("(", paste(round(reg.saem$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.saem, digits = 0)  , round(auc.saem, digits = 2), round(F1.saem, digits = 3)),
+  Mean = c(paste("(", paste(round(reg.mean$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.mean, digits = 0)  , round(auc.mean, digits = 2), round(F1.mean, digits = 3)),
+  MICE = c(paste("(", paste(round(reg.mice$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.mice, digits = 0)  , round(auc.mice, digits = 2), round(F1.mice, digits = 3))
+)
+print(sum)
+```
+
+```{r}
+roc.cc = performance(prediction(pred.cc.proba, y.test), "tpr", "fpr")
+roc.saem = performance(prediction(pred.saem.proba, y.test), "tpr", "fpr")
+roc.mean = performance(prediction(pred.mean.proba, y.test), "tpr", "fpr")
+roc.mice= performance(prediction(pred.mice.proba, y.test), "tpr", "fpr")
+plot(roc.cc, col = "blue", lwd = 1, main = "ROC Curve MCAR")
+lines(roc.saem@x.values[[1]], roc.saem@y.values[[1]], col = "red", lwd = 1)
+lines(roc.mean@x.values[[1]], roc.mean@y.values[[1]], col = "darkgreen", lwd = 1)
+lines(roc.mice@x.values[[1]], roc.mice@y.values[[1]], col = "purple", lwd = 1)
+legend("bottomright", legend = c("Complete Case", "SAEM", "Mean Imputation", "MICE"), col = c("blue", "red", "darkgreen", "purple"), lwd = 2)
+```
+
+### Model Selection
+
+We consider a new set up were $\beta$ is sparse with fewer individuals than before, for shorter calculation times.
+
+```{r}
+n = 500
+beta = c(0, 0.5, 0, 1, 0, 3)
+
+X.obs.selection = head(X.obs, n)
+
+p_y2 = 1/(1+exp(-beta[1]-head(X.cc, n)%*%beta[2:6]))
+y2 = as.numeric(runif(n)<p_y2)
+```
+
+We can now try if the selection model is accurate :
+
+```{r, warning=FALSE}
+selected = miss.glm.model.select(y2, X.obs.selection)
+selected
+```
+
+Model selection works quite well !
+
+## MAR
+
+### Setup
+
+```{r}
+rm(list = ls())
+```
+
+We follow the setup describe in the paper. Check the section of the review for more information.In order to the covariance is significant, We just change $\beta$.
+
+```{r}
+n = 10000
+p = 5
+mu = c(1,2,3,4,5)
+sd = c(1,2,3,4,5)
+C = matrix(c(
+  1,   0.8, 0,   0,   0,
+  0.8, 1,   0,   0,   0,
+  0,   0,   1,   0.3, 0.6,
+  0,   0,   0.3, 1,   0.7,
+  0,   0,   0.6, 0.7, 1
+), nrow=p)
+Sigma = diag(sd)%*%C%*%diag(sd)
+
+beta = c(-1, 0.5, -0.3, 1, 0.4, -0.6)
+
+X.cc = matrix(rnorm(n*p, mu, Sigma), nrow=n)
+```
+
+Then, we can calculate $p(y_i=1|x_i, \beta)=\frac{exp(\beta_0+\sum_{j=1}^p \beta_j x_ij)}{1+exp(\beta_0+\sum_{j=1}^p \beta_j x_ij)}$ and draw the vector $y \in \{0,1\}^n$.
+
+```{r}
+p_y = 1/(1+exp(-beta[1]-X.cc%*%beta[2:6]))
+y = as.numeric(runif(n)<p_y)
+```
+
+Now, we can introduced $10\%$ missing to be MAR. We have a strong covariance between V1-V2 and V4-V5. We therefore randomly introduce missing data dependent on these covariates.To do this, we first choose a threshold on a variable that allows us to retrieve the indices below or above this threshold. Then, for each index, we draw a Bernoulli to find out whether or not this index will be missing data for its conjugate variable.
+
+```{r}
+X.obs = X.cc
+# Introduce random missing values in variable 2 depending on variable 1
+patterns = which(X.cc[,1] < 2)
+patterns = sample(patterns, size = sum(runif(length(patterns)) < .8)) # Bernoulli with p=0.4
+X.obs[patterns, 2] = NA
+# Introduce random missing values in variable 4 depending on variable 5
+patterns = which(X.cc[,5] < 4)
+patterns = sample(patterns, size = sum(runif(length(patterns)) < .8)) # Bernoulli with p=0.7
+X.obs[patterns, 4] = NA
+```
+
+We want to make sure that, as in the course, this gives better results than by average imputation or by MICE.
+
+```{r}
+X.mean = na.aggregate(X.obs, FUN = mean)
+X.mice = mice(X.obs)
+X.mice = as.matrix(complete(X.mice))
+```
+
+Now we create a train and test set
+
+```{r}
+indx = sample(seq_len(nrow(X.cc)), size = round(0.7 * nrow(X.cc)))
+X.cc.train = X.cc[indx, ]
+X.cc.test = X.cc[-indx, ]
+X.obs.train = X.obs[indx, ]
+X.obs.test = X.obs[-indx, ]
+X.mean.train = X.mean[indx, ]
+X.mean.test = X.mean[-indx, ]
+X.mice.train = X.mice[indx, ]
+X.mice.test = X.mice[-indx, ]
+y.train = y[indx]
+y.test = y[-indx]
+```
+
+### Analyse of the complete case
+
+```{r}
+reg.cc = glm(y.train~., data=as.data.frame(X.cc.train), family = binomial(link = "logit"))
+summary(reg.cc)
+LL.cc = as.numeric(logLik(reg.cc))
+pred.cc.proba = predict(reg.cc, newdata=as.data.frame(X.cc.test),  type="response")
+pred.cc = ifelse(pred.cc.proba < 0.5, 0, 1)
+auc.cc = AUC(pred.cc, y.test)
+F1.cc = F1_Score(pred.cc, y.test)
+```
+
+### Analyse of the masked case
+
+##### SAEM
+
+```{r, warning=FALSE}
+reg.saem = miss.glm(y.train~., data=as.data.frame(X.obs.train))
+summary(reg.saem)
+LL.saem = reg.saem$ll
+pred.saem.proba = predict(reg.saem, newdata=as.data.frame(X.obs.test),  method = "map", type="")
+pred.saem = ifelse(pred.saem.proba < 0.5, 0, 1)
+auc.saem = AUC(pred.saem, y.test)
+F1.saem = F1_Score(pred.saem, y.test)
+```
+
+##### Imputation by average
+
+```{r}
+reg.mean = glm(y.train~., data=as.data.frame(X.mean.train), family = binomial(link = "logit"))
+summary(reg.mean)
+LL.mean = as.numeric(logLik(reg.mean))
+pred.mean.proba = predict(reg.mean, newdata=as.data.frame(X.mean.test),  type="response")
+pred.mean = ifelse(pred.mean.proba < 0.5, 0, 1)
+auc.mean = AUC(pred.mean, y.test)
+F1.mean = F1_Score(pred.mean, y.test)
+```
+
+##### MICE
+
+```{r}
+reg.mice = glm(y.train~., data=as.data.frame(X.mice.train), family = binomial(link = "logit"))
+summary(reg.mice)
+LL.mice = as.numeric(logLik(reg.mice))
+pred.mice.proba = predict(reg.mice, newdata=as.data.frame(X.mice.test),  type="response")
+pred.mice = ifelse(pred.mice.proba < 0.5, 0, 1)
+auc.mice = AUC(pred.mice, y.test)
+F1.mice = F1_Score(pred.mice, y.test)
+```
+
+### Summary
+
+```{r}
+sum = data.frame(
+  Données = c("Beta", "max LogLikelihood", "AUC", "F1 score"),
+  Complete_Case = c(paste("(", paste(round(reg.cc$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.cc, digits = 0) , round(auc.cc, digits = 2), round(F1.cc, digits = 3)),
+  SAEM = c(paste("(", paste(round(reg.saem$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.saem, digits = 0)  , round(auc.saem, digits = 2), round(F1.saem, digits = 3)),
+  Mean = c(paste("(", paste(round(reg.mean$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.mean, digits = 0)  , round(auc.mean, digits = 2), round(F1.mean, digits = 3)),
+  MICE = c(paste("(", paste(round(reg.mice$coefficients, digits = 2), collapse = ", "), ")", sep = ""), round(LL.mice, digits = 0)  , round(auc.mice, digits = 2), round(F1.mice, digits = 3))
+)
+print(sum)
+```
+
+```{r}
+roc.cc = performance(prediction(pred.cc.proba, y.test), "tpr", "fpr")
+roc.saem = performance(prediction(pred.saem.proba, y.test), "tpr", "fpr")
+roc.mean = performance(prediction(pred.mean.proba, y.test), "tpr", "fpr")
+roc.mice= performance(prediction(pred.mice.proba, y.test), "tpr", "fpr")
+plot(roc.cc, col = "blue", lwd = 1, main = "ROC Curve MAR")
+lines(roc.saem@x.values[[1]], roc.saem@y.values[[1]], col = "red", lwd = 1)
+lines(roc.mean@x.values[[1]], roc.mean@y.values[[1]], col = "darkgreen", lwd = 1)
+lines(roc.mice@x.values[[1]], roc.mice@y.values[[1]], col = "purple", lwd = 1)
+legend("bottomright", legend = c("Complete Case", "SAEM", "Mean Imputation", "MICE"), col = c("blue", "red", "darkgreen", "purple"), lwd = 2)
+```
+
+### Model Selection
+
+We consider a new set up were $\beta$ is sparse with fewer individuals than before, for shorter calculation times.
+
+```{r}
+n = 500
+beta = c(0, 0.5, 0, 0, 2, 1)
+
+X.obs.selection = head(X.obs, n)
+
+p_y2 = 1/(1+exp(-beta[1]-head(X.cc, n)%*%beta[2:6]))
+y2 = as.numeric(runif(n)<p_y2)
+```
+
+We can now try if the selection model is accurate :
+
+```{r, warning=FALSE}
+selected = miss.glm.model.select(y2, X.obs.selection)
+selected
+```
+
+Model selection works quite well !

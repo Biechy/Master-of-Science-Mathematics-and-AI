@@ -1,0 +1,228 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>analysis &#8212; Residual Learning 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for analysis</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Module to download plot of comparaisons</span>
+<span class="sd">refer to global_loop function in train_test_functions.py to see how named are encoded </span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+
+
+<div class="viewcode-block" id="Compare_OptionA_and_B"><a class="viewcode-back" href="../analysis.html#analysis.Compare_OptionA_and_B">[docs]</a><span class="k">def</span> <span class="nf">Compare_OptionA_and_B</span><span class="p">():</span>
+    <span class="n">ResNet56A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet56B_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56B_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44B_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44B_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32B_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32B_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20B_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20B_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">ResNet56A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet56B_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56B_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44B_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44B_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32B_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32B_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20B_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20B_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">matrices_acc</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_acc</span><span class="p">,</span> <span class="n">ResNet44A_acc</span><span class="p">,</span> <span class="n">ResNet32A_acc</span><span class="p">,</span> <span class="n">ResNet20A_acc</span><span class="p">,</span> <span class="n">ResNet56B_acc</span><span class="p">,</span> <span class="n">ResNet44B_acc</span><span class="p">,</span> <span class="n">ResNet32B_acc</span><span class="p">,</span> <span class="n">ResNet20B_acc</span><span class="p">]</span>
+    <span class="n">matrices_loss</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_loss</span><span class="p">,</span> <span class="n">ResNet44A_loss</span><span class="p">,</span> <span class="n">ResNet32A_loss</span><span class="p">,</span> <span class="n">ResNet20A_loss</span><span class="p">,</span> <span class="n">ResNet56B_loss</span><span class="p">,</span> <span class="n">ResNet44B_loss</span><span class="p">,</span> <span class="n">ResNet32B_loss</span><span class="p">,</span> <span class="n">ResNet20B_loss</span><span class="p">]</span>
+    <span class="n">matrices_str</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ResNet56A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet44A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet32A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet20A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet56B&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet44B&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet32B&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet20B&quot;</span><span class="p">]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Accuracy of ResNet with shortcut A or B&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_acc</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Loss of ResNet with shortcut A or B&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_loss</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;./results/OptionAandB.png&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Compare_ResNet_and_TorchResNet"><a class="viewcode-back" href="../analysis.html#analysis.Compare_ResNet_and_TorchResNet">[docs]</a><span class="k">def</span> <span class="nf">Compare_ResNet_and_TorchResNet</span><span class="p">():</span>
+    <span class="n">ResNet56A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet50_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet50_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet34_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet34_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet18_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet18_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">ResNet56A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet50_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet50_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet34_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet34_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">TorchResNet18_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/TorchResNet18_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">matrices_acc</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_acc</span><span class="p">,</span> <span class="n">ResNet32A_acc</span><span class="p">,</span> <span class="n">ResNet20A_acc</span><span class="p">,</span> <span class="n">TorchResNet50_acc</span><span class="p">,</span> <span class="n">TorchResNet34_acc</span><span class="p">,</span> <span class="n">TorchResNet18_acc</span><span class="p">]</span>
+    <span class="n">matrices_loss</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_loss</span><span class="p">,</span> <span class="n">ResNet32A_loss</span><span class="p">,</span> <span class="n">ResNet20A_loss</span><span class="p">,</span> <span class="n">TorchResNet50_loss</span><span class="p">,</span> <span class="n">TorchResNet34_loss</span><span class="p">,</span> <span class="n">TorchResNet18_loss</span><span class="p">]</span>
+    <span class="n">matrices_str</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ResNet56A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet32A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet20A&quot;</span><span class="p">,</span> <span class="s2">&quot;TorchResNet50&quot;</span><span class="p">,</span> <span class="s2">&quot;TorchResNet34&quot;</span><span class="p">,</span> <span class="s2">&quot;TorchResNet18&quot;</span><span class="p">]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Accuracy of ResNet vs TorchResNet&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_acc</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">matrix_name</span> <span class="o">!=</span> <span class="s2">&quot;TorchResNet50&quot;</span> <span class="ow">and</span> <span class="n">matrix_name</span> <span class="o">!=</span> <span class="s2">&quot;TorchResNet34&quot;</span> <span class="ow">and</span> <span class="n">matrix_name</span> <span class="o">!=</span> <span class="s2">&quot;TorchResNet18&quot;</span><span class="p">:</span>
+            <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Loss of ResNet vs TorchResNet&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_loss</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;./results/ResNetandTorchResNet.png&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Compare_ResNet_and_CNN"><a class="viewcode-back" href="../analysis.html#analysis.Compare_ResNet_and_CNN">[docs]</a><span class="k">def</span> <span class="nf">Compare_ResNet_and_CNN</span><span class="p">():</span>
+    <span class="n">ResNet56A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN56_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN56_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN44_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN44_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN32_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN32_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN20_acc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN20_acc.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">ResNet56A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet56A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet44A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet44A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet32A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet32A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">ResNet20A_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/ResNet20A_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN56_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN56_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN44_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN44_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN32_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN32_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">CNN20_loss</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="s2">&quot;./results/CNN20_loss.csv&quot;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="n">matrices_acc</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_acc</span><span class="p">,</span> <span class="n">ResNet44A_acc</span><span class="p">,</span> <span class="n">ResNet32A_acc</span><span class="p">,</span> <span class="n">ResNet20A_acc</span><span class="p">,</span> <span class="n">CNN56_acc</span><span class="p">,</span> <span class="n">CNN44_acc</span><span class="p">,</span> <span class="n">CNN32_acc</span><span class="p">,</span> <span class="n">CNN20_acc</span><span class="p">]</span>
+    <span class="n">matrices_loss</span> <span class="o">=</span> <span class="p">[</span><span class="n">ResNet56A_loss</span><span class="p">,</span> <span class="n">ResNet44A_loss</span><span class="p">,</span> <span class="n">ResNet32A_loss</span><span class="p">,</span> <span class="n">ResNet20A_loss</span><span class="p">,</span> <span class="n">CNN56_loss</span><span class="p">,</span> <span class="n">CNN44_loss</span><span class="p">,</span> <span class="n">CNN32_loss</span><span class="p">,</span> <span class="n">CNN20_loss</span><span class="p">]</span>
+    <span class="n">matrices_str</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ResNet56A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet44A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet32A&quot;</span><span class="p">,</span> <span class="s2">&quot;ResNet20A&quot;</span><span class="p">,</span> <span class="s2">&quot;CNN56&quot;</span><span class="p">,</span> <span class="s2">&quot;CNN44&quot;</span><span class="p">,</span> <span class="s2">&quot;CNN32&quot;</span><span class="p">,</span> <span class="s2">&quot;CNN20&quot;</span><span class="p">]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Accuracy of ResNet vs CNN&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_acc</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Loss of ResNet vs CNN&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">matrix_name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matrices_loss</span><span class="p">,</span> <span class="n">matrices_str</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">matrix</span> <span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">matrix_name</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;./results/ResNetvsCNN.png&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Residual Learning</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">ResNet</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Cavalier, Biéchy.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

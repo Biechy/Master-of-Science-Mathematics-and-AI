@@ -1,0 +1,788 @@
+---
+author: "Biéchy Lucas, Pierron Alex, Yannig Goude"
+date: "2023"
+output:
+  pdf_document:
+    toc: true
+    fig_width: 5
+  html_document:
+    toc: true
+#classoption: twocolumn
+bibliography: references.bib
+title: "Lockdown Period Load Forecasting"
+---
+https://ademos.people.uic.edu/Chapter23.html
+
+```{r include=FALSE}
+rm(list=objects())
+graphics.off()
+set.seed(2023)
+options(timeout = 600) # 10 minutes
+```
+
+# Import and data processing
+
+Import librairy
+
+```{r include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(forecast)
+library(mgcv)
+library(yarrr)
+library(magrittr)
+library(forecast)
+library(tidyverse)
+library(ranger)
+library(opera)
+
+library(randomForest)
+library(xgboost)
+library(neuralnet)
+
+library(plsmselect)
+library(qgam)
+source('R/score.R')
+
+```
+
+## Import Data
+
+```{r}
+preTrain <- read_delim("Data/train.csv", delim=",", show_col_types	= FALSE)
+test <- read_delim("Data/test.csv", delim=",", show_col_types	= FALSE)
+```
+
+## Data processing
+### Transform Date and WeekDays in values
+
+```{r}
+preTrain$Time <- as.numeric(preTrain$Date)
+test$Time <- as.numeric(test$Date)
+preTrain$Days <- as.numeric(factor(preTrain$WeekDays))
+test$Days <- as.numeric(factor(test$WeekDays))
+```
+
+```{r}
+head(preTrain)
+```
+
+### Check missing values
+
+```{r}
+sapply(preTrain, function(x) sum(is.na(x)))
+```
+
+```{r}
+sapply(test, function(x) sum(is.na(x)))
+```
+
+No missing values find, we can use this directly all the dataset.
+
+```{r}
+summary(preTrain)
+```
+
+### Creation of a validation set
+As well as in courses, we have decided to create a validation set on data from January to April 2020 because this period includes a period with and without containment, which is a priori a good estimator of what will follow until January 2021. This validation set will be used to compute our generalization error estimator. However, lacking Covid data in the train set, we will redefine the final models on the preTrain (i.e. validation set and train set), with hyperparameters optimized on validation set, because several features are null in the whole train set, which creates a loss of information that we think is useful to predict the test set. We believe that this is a good compromise between optimizing the hyperparameters and training our model over a period including the Covid.
+
+```{r}
+train <- preTrain[preTrain$Year<=2019,]
+val <- preTrain[preTrain$Year>2019,]
+```
+
+## Data visualisation
+
+### Trend
+
+```{r}
+plot(train$Date, train$Load, type='l', xlim=range(train$Date, test$Date))
+```
+
+We can see with this plot that the electric load has no linear tendency and no tendency to be multimodal. It seems more like the consumption follows a time series model. We will therefore focus our methods to try to predict this pattern.
+
+### One year representation
+
+```{r}
+plot(train$Date[1:365], train$Load[1:365], type='l')
+```
+
+The consumption is minimal during the summer period and maximal during the winter period. We also have a break in August, during the common vacations. Therefore the variables "summer_break" and "christmas_break" as well as "toy" and "month" will be studied.
+
+```{r}
+plot(train$toy, train$Load, pch=16,  col=adjustcolor(col='black', alpha=0.2))
+```
+
+We can see that consumption seems fairly predictable during the summer. The three bands from 0.4 to 0.8 represent respectively the days outside the weekend, Saturday and Sunday (cf just below). 
+
+### Days representation
+```{r}
+boxplot(Load~WeekDays, data=train)
+boxplot(Load~BH, data=train)
+```
+
+Indeed the average consumption is smaller on weekends, however it remains the same on other days. Moreover the consumption is significantly lower during the bank holidays. We will therefore study the effect of Saturday, Sunday and Bank Holidays rather than all other days.
+
+### Meteo effect
+
+```{r}
+plot(train$Date, train$Load, type='l', ylab='')
+par(new=T)
+plot(train$Date, train$Temp, type='l', col='red', axes=F,xlab='',ylab='')
+
+
+plot(train$Date[1:365], train$Load[1:365], type='l', ylab='')
+par(new=T)
+plot(train$Date[1:365], train$Temp[1:365], type='l', col='red', axes=F,xlab='',ylab='')
+
+
+plot(train$Temp, train$Load, pch=3,  col=adjustcolor(col='black', alpha=0.25))
+cor(train$Temp, train$Load); cor(train$Temp_s99, train$Load);cor(train$Temp_s99_max, train$Load);cor(train$Temp_s99_min, train$Load); cor(train$Temp_s95, train$Load);cor(train$Temp_s95_max, train$Load);cor(train$Temp_s95_min, train$Load)
+```
+
+We see with these 3 figures and this console log that there is a strong negative correlation between the temperature (smooth and unsmooth) and the consumption, which seems linear (in two parts). However, the smooth min and max variables do not seem to increase the correlation significantly, to be tested with statistical tests.
+
+### Lag
+```{r}
+par(mfrow=c(2,2))
+Acf(train$Load, lag.max=7*3, type = c("correlation"))
+abline(v=8, col = adjustcolor(col='grey', alpha=0.6))
+Acf(train$Load, lag.max=7*3, type = c("partial"))
+abline(v=8, col = adjustcolor(col='grey', alpha=0.6))
+Acf(train$Load, lag.max=7*60, type = c("correlation"))
+abline(v=366, col = adjustcolor(col='grey', alpha=0.6))
+Acf(train$Load, lag.max=7*60, type = c("partial"))
+abline(v=366, col = adjustcolor(col='grey', alpha=0.6))
+```
+We can see that autocorrelation is very important across days, whether it is across the week or the year. We also notice that there are negative peaks of partial autocorrelation on the same day of the following week or year.
+```{r}
+plot(train$Load.7, train$Load, pch=3)
+
+plot(train$Load.1, train$Load, pch=3)
+
+cor(train$Load.1, train$Load)
+cor(train$Load.7, train$Load)
+```
+
+The correlation between Load, Load1 and Load7 is very strong and Load seems to depend linearly on Load1 and Load7. It will therefore be necessary to take into account the daily and weekly temperature inertia in our model.
+
+
+# Ensemble Methods
+
+As we have seen before, many variables seem to be important in our dataset. Therefore, a first approach to the prediction problem can be done by ensemble methods. This allows us to have suitable first predictions without having to make a very thorough selection of variables. 
+
+## Random Forest
+Search for the best hyperparameters 
+```{r}
+# Créer une grille de combinaisons de paramètres
+param_grid <- expand.grid(mtry = 3:19, sampsize = as.integer(nrow(train) * seq(0.2, 0.8, by = 0.1)), nodesize = 5:15)
+
+# Fonction pour ajuster un modèle randomForest et retourner la RMSE
+rf.fct <- function(mtry, sampsize, nodesize) {
+  rf <- randomForest(Load ~ . - WeekDays - Date, data = train, ntree = 150, mtry = mtry, sampsize = sampsize, nodesize = nodesize)
+  rf.pred <- predict(rf, newdata = val)
+  rmse(rf.pred, val$Load)
+}
+
+# Appliquer la fonction fit_rf à chaque combinaison de paramètres
+rf.rmseList <- apply(param_grid, 1, function(x) rf.fct(x[1], x[2], x[3]))
+
+# Trouver la combinaison qui minimise la RMSE
+rf.paramsOpti <- param_grid[which.min(rf.rmseList), ]
+rf.rmse <- min(rf.rmseList)
+
+# Afficher les résultats
+cat("Best hyperparameters: mtry =", rf.paramsOpti$mtry, ", sampsize =", rf.paramsOpti$sampsize, ", nodesize =", rf.paramsOpti$nodesize, "\n")
+cat("Best RMSE:", rf.rmse)
+```
+Defines the optimized model
+```{r}
+rf <- randomForest(Load ~ . - WeekDays - Date, data = preTrain, ntree = 150, mtry = rf.paramsOpti$mtry, sampsize = rf.paramsOpti$sampsize, nodesize = rf.paramsOpti$nodesize)
+```
+
+```{r include=FALSE}
+score.rf <- kaggle_score(predict(rf, newdata = test), test$Load.1)
+cat(score.rf)
+#Score Kaggle Officiel : 1589
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(rf, newdata=test)
+write.table(submit, file="Data/submit_randomForest.csv", quote=F, sep=",", dec='.',row.names = F)
+
+rm(list=c("param_grid", "rf.fct", "rf.paramsOpti", "rf.rmseList"))
+```
+**Kaggle Score for RandomForest : *1916* **
+
+## Boosting
+Search for the best hyperparameters 
+```{r}
+features <- setdiff(colnames(train), c("Load", "WeekDays","Date"))
+dtrain <- xgb.DMatrix(data = as.matrix(train[,features]), label = train$Load)
+dval <- xgb.DMatrix(data = as.matrix(val[,features]), label = val$Load)
+
+param_grid <- expand.grid(eta = seq(.001, .2, by=.01), max_depth = 2:8, sample = seq(.2, .9, by=.1))
+
+
+xgb.fct <- function(eta, max_depth, sample) {
+  params <- list(
+  objective = "reg:squarederror",
+  eta = eta,
+  max_depth = max_depth,
+  subsample = sample,
+  colsample_bytree = sample
+  )
+  xgb <- xgb.train(
+    params = params,
+    data = dtrain,
+    nrounds = 1000,
+    watchlist = list(train = dtrain, validation = dval),
+    early_stopping_rounds = 10,
+    verbose = 0
+  )
+  xgb.pred <- predict(xgb, newdata=dval)
+  rmse(xgb.pred, val$Load)
+}
+
+# Appliquer la fonction fit_rf à chaque combinaison de paramètres
+xgb.rmseList <- apply(param_grid, 1, function(x) xgb.fct(x[1], x[2], x[3]))
+
+# Trouver la combinaison qui minimise la RMSE
+xgb.paramsOpti <- param_grid[which.min(xgb.rmseList), ]
+xgb.rmse <- min(xgb.rmseList)
+
+# Afficher les résultats
+cat("Best hyperparameters: eta =", xgb.paramsOpti$eta, ", max_depth =", xgb.paramsOpti$max_depth, ", sample =", xgb.paramsOpti$sample, "\n")
+cat("Best RMSE:", xgb.rmse)
+
+```
+Defines the optimized model
+```{r}
+dpreTrain <- xgb.DMatrix(data = as.matrix(preTrain[,features]), label = preTrain$Load)
+params <- list(
+  objective = "reg:squarederror",
+  eta = xgb.paramsOpti$eta,
+  max_depth = xgb.paramsOpti$max_depth,
+  subsample = xgb.paramsOpti$sample,
+  colsample_bytree = xgb.paramsOpti$sample
+)
+xgb <- xgb.train(
+    params = params,
+    data = dpreTrain,
+    nrounds = 1000,
+    watchlist = list(train = dtrain, validation = dval),
+    early_stopping_rounds = 10,
+    verbose = 0
+)
+```
+
+```{r include=FALSE}
+score.xgb <- kaggle_score(predict(xgb, newdata =as.matrix(test[,features])), test$Load.1)
+cat(score.xgb)
+#Score Kaggle Officiel : 2116
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(xgb, newdata=as.matrix(test[,features]))
+write.table(submit, file="Data/submit_XGBoost.csv", quote=F, sep=",", dec='.',row.names = F)
+rm(list=c("dtrain", "dval", "dpreTrain", "features", "param_grid", "xgb.fct", "xgb.paramsOpti", "xgb.rmseList"))
+```
+
+**Kaggle Score for XGBoost : *2276* **
+
+
+## NeuralNetwork
+This part is only an opening to the possibility of answering the problem by a neural network. Therefore, we will not try to optimize the hyperparameters of the fully connected network.
+
+
+Check the RMSE to get an idea
+```{r}
+features <- setdiff(colnames(train), c("WeekDays","Date"))
+train_norm <- apply(train[,features], 2, normalize)
+val_norm <- apply(val[,features], 2, normalize)
+
+
+nn <- neuralnet(Load ~ . , data = train_norm, hidden = c(5, 2), err.fct = "sse", linear.output = TRUE ,rep=5)
+plot(nn, rep=1)
+
+nn.pred <- predict(nn, newdata = val_norm)
+nn.pred <- nn.pred*(max(train$Load) - min(train$Load)) + min(train$Load)
+
+nn.rmse <- rmse(nn.pred, val$Load); cat(nn.rmse)
+
+```
+Defines the model on preTrain
+```{r}
+features <- setdiff(colnames(train), c("WeekDays","Date"))
+preTrain_norm <- apply(train[,features], 2, normalize)
+
+nn <- neuralnet(Load ~ . , data = preTrain_norm, hidden = c(5, 2), err.fct = "sse", linear.output = TRUE ,rep=5)
+```
+
+```{r include=FALSE}
+features <- setdiff(colnames(train), c("WeekDays","Date", "Load"))
+test_norm <- apply(test[,features], 2, normalize)
+pred <- predict(nn, newdata=test_norm)
+pred <- pred*(max(preTrain$Load) - min(preTrain$Load)) + min(preTrain$Load)
+score.nn <- kaggle_score(pred, test$Load.1)
+cat(score.nn)
+rm(pred)
+#Score Kaggle Officiel : 7002
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(nn, newdata=apply(test[,features], 2, normalize))
+submit$Load <- submit$Load*(max(preTrain$Load) - min(preTrain$Load)) + min(preTrain$Load)
+write.table(submit, file="Data/submit_NeuralNetwork.csv", quote=F, sep=",", dec='.',row.names = F)
+rm(list=c("features", "train_norm", "val_norm", "preTrain_norm", "test_norm"))
+```
+**Kaggle Score for NeuralNetwork : * *7233 **
+
+
+# Generalized Additive Models
+
+In this part we will leave the ensemble methods to use a regression method called Generalized Additive Models (GAM) as seen in the course. The difficulty of this part will be the selection and the construction of the variables as well as the good choice of the hyperparameters.
+
+## Selection and construction of variables significant to the problem
+
+In this part, several methods are available to us. The first one is to test an arbitrary set of models with variables that seem to be coherent and useful for the prediction by GAM. This requires experience and therefore does not seem to be the most appropriate for us students. The second is to use shrinkage method such as the LASSO regression. Finally a classical statistical study with likelihood ratio tests is also possible.
+
+### LASSO regression
+```{r}
+equation <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(toy,k=30, bs='cr') + 
+  s(Temp,k=5, bs='cr') + 
+  s(Load.1, k=4, bs='cr')+ 
+  s(Load.7, k=4, bs='cr') +
+  s(Temp_s95,k=3, bs='cr') +
+  s(Temp_s99,k=3, bs='cr') +
+  WeekDays + BH + Summer_break  + 
+  Christmas_break + GovernmentResponseIndex +
+  te(Temp_s95_max, Temp_s99_max) + 
+  te(Temp_s95_min, Temp_s99_min) + 
+  te(Temp_s95, Temp_s99) +
+  te(Temp_s95_min, Temp_s95_max) +
+  te(Temp_s99_min, Temp_s99_max)
+gamLASSO <- gamlasso(equation, data = train, seed=1, linear.penalty = "l1", smooth.penalty = "l1")
+summary(gamLASSO)
+```
+Creation of a GAM with relevant variables
+```{r}
+equation <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(toy,k=30, bs='cr') + 
+  s(Temp,k=5, bs='cr') + 
+  s(Load.1, k=4, bs='cr')+ 
+  s(Load.7, k=4, bs='cr') +
+  WeekDays + BH + Christmas_break + GovernmentResponseIndex +
+  te(Temp_s95_max, Temp_s99_max) + 
+  te(Temp_s95_min, Temp_s99_min)
+gamLASSO.pred <- predict(gamLASSO, newdata=val)
+```
+
+```{r}
+gamLASSO.rmse <- rmse(gamLASSO.pred, val$Load); cat(gamLASSO.rmse)
+```
+Defines the model on preTrain
+```{r}
+gamLASSO <- gam(equation, data=preTrain)
+```
+
+```{r include=FALSE}
+score.gamLASSO <- kaggle_score(predict(gamLASSO, newdata = test), test$Load.1)
+cat(score.gamLASSO)
+#Score Kaggle Officiel : 2067
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(gamLASSO, newdata=test)
+write.table(submit, file="Data/submit_GAM_LASSO.csv", quote=F, sep=",", dec='.',row.names = F)
+```
+
+**Kaggle Score for GAM LASSO : * 1895 * **
+
+### Anova
+Before we tried to use LASSO regression in order to extract the most variables from a complex model. Unfortunately, few variables could be removed and the RMSE is very disappointing. Therefore, we will try to do the opposite, starting from a very simple model and adding significant variables by likelihood ratio tests with function ANOVA.
+
+Creation of a simple model chosen arbitrarily and anova test
+```{r}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+We can see that the p-value of the new model is very significant. In this case, we keep the new variables. We reproduce this process several times, when the model is significant we keep the new variables, when the model is not, we do not add these variables to the new model. We arrive then at the final model gam:
+```{r include=FALSE}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7)
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+
+```{r include=FALSE}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7)
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  s(Load.1, k=5, bs='cr') + s(Load.7, k=5, bs='cr') +
+  te(Load.1, Load.7)
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+
+```{r include=FALSE}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7)
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7) +
+  te(Temp_s99, Temp_s95)
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+
+
+```{r include=FALSE}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7) + te(Temp_s99, Temp_s95)
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7) +
+  te(Temp_s99, Temp_s95) +
+  te(toy, Month, Year)
+  
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+
+```{r include=FALSE}
+equation1 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7) + te(Temp_s99, Temp_s95) + te(toy, Month, Year)
+
+equation2 <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break + DLS +
+  GovernmentResponseIndex +
+  te(Load.1, Load.7) + te(Temp_s99, Temp_s95) + te(toy, Month, Year)
+  
+
+gam_temp1 <- gam(equation1, data=train)
+gam_temp2 <- gam(equation2, data=train)
+
+anova(gam_temp1, gam_temp2,  test = "Chisq")
+```
+```{r include=FALSE}
+rm(list=c("gam_temp1", "gam_temp2", "equation1", "equation2"))
+```
+
+```{r}
+equation <- Load~
+  s(Time,k=3, bs='cr') + 
+  s(Temp, k=5, bs='cr') +
+  WeekDays + BH + Christmas_break + Summer_break +
+  te(Load.1, Load.7) + te(Temp_s99, Temp_s95) + te(toy, Month, Year)
+
+gamAnova <- gam(equation, data=train)
+gamAnova.pred <- predict(gamAnova, newdata=val)
+```
+Note that the variables being added by hand, this final equation is not exhaustive.  
+```{r}
+gamAnova.rmse <- rmse(gamAnova.pred, val$Load); cat(gamAnova.rmse)
+```
+Defines the model on preTrain
+```{r}
+gamAnova <- gam(equation, data=preTrain)
+```
+
+```{r include=FALSE}
+score.gamAnova <- kaggle_score(predict(gamAnova, newdata = test), test$Load.1)
+cat(score.gamAnova)
+#Score Kaggle Officiel : 1070
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(gamAnova, newdata=test)
+write.table(submit, file="Data/submit_GAM_Anova.csv", quote=F, sep=",", dec='.',row.names = F)
+```
+
+**Kaggle Score for GAM Anova : * 719 * **
+
+The gam model by anova having a kaggle score significantly lower, we will take this model as final gam model. This is not advisable, but in our case, our hypothesis that the validation set represents well the Covid period may be wrong, hence the large RMSE of this model
+
+## Model Improvement
+
+In this part we will try to improve the selected GAM model by different methods.
+
+### Quantile regression
+
+We will use the GAM quantile regression implemented with the qgam function, which is inspired in the quantile regression seen in class.
+```{r}
+qgam <- qgam(equation, data=train, qu=.5)
+qgam.pred <- predict(qgam, newdata=val)
+```
+
+
+```{r}
+qgam.rmse <- rmse(qgam.pred, val$Load); cat(qgam.rmse)
+```
+
+Defines the model on preTrain
+```{r}
+qgam <- qgam(equation, data=preTrain, qu=.5)
+```
+
+```{r include=FALSE}
+score.qgam <- kaggle_score(predict(qgam, newdata = test), test$Load.1)
+cat(score.qgam)
+#Score Kaggle Officiel : 1261
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- predict(qgam, newdata=test)
+write.table(submit, file="Data/submit_qGAM.csv", quote=F, sep=",", dec='.',row.names = F)
+```
+
+**Kaggle Score for qGAM : * 898 * **
+Quantile regression did not really improve the performance of the model. We will therefore not take this regression into account.
+
+### ARIMA
+We must first check the auto correlation function and the partial auto correlation function applied to the residuals to verify the lag of the errors in our model.
+```{r}
+gamARIMA <- gam(equation, data=preTrain)
+gamARIMA.pred <- predict(gamARIMA)
+res <- preTrain$Load - gamARIMA.pred
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+Acf(res, lag.max=7*3, type = c("correlation"))
+Acf(res, lag.max=7*3, type = c("partial"))
+Acf(train$Load, lag.max=7*60, type = c("correlation"))
+Acf(train$Load, lag.max=7*60, type = c("partial"))
+```
+
+
+```{r}
+res.ts <- ts(res, frequency=7)
+res.fit <- auto.arima(res.ts,max.p=3,max.q=4, max.P=2, max.Q=2, trace=T,ic="aic", method="CSS")
+gamARIMA.pred <- predict(gamARIMA,  newdata= test)
+res.pred <- ts(c(res.ts, test$Load.1 - gamARIMA.pred),  frequency= 7)
+res.refit <- Arima(res.pred, model=res.fit)
+
+res.test <- tail(res.refit$fitted, nrow(test))
+
+gamARIMA.pred <- gamARIMA.pred + res.test
+```
+
+```{r include=FALSE}
+score.gamARIMA <- kaggle_score(gamARIMA.pred, test$Load.1)
+cat(score.gamARIMA)
+#Score Kaggle Officiel : 980
+```
+
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- gamARIMA.pred
+write.table(submit, file="Data/submit_GAM_ARIMA.csv", quote=F, sep=",", dec='.',row.names = F)
+```
+
+**Kaggle Score for GAM ARIMA : * 661 * **
+ARIMA allowed us to improve our score significantly, so we will take this model as a reference.
+
+### Online Learning
+```{r}
+newTest <- data.frame(Load=rep(NA, nrow(test)), subset(test, select = -Id))
+Data <- rbind(preTrain, newTest )
+
+for(i in nrow(preTrain): (nrow(Data)-1))
+{
+  print(i)
+  #New Learning
+  Data[i, ]["Load"] = Data[i+1,]["Load.1"]
+  
+  #GAM with this new Data
+  gamOL <- gam(equation, data=Data[1:i,])
+  
+  #Add ARIMA to this new GAM
+  res <- Data[1:i,]["Load"] - predict(gamOL)
+  res.ts <- ts(res, frequency=7)
+  res.fit <- auto.arima(res.ts,max.p=3,max.q=4, max.P=2, max.Q=2, trace=T,ic="aic", method="CSS")
+  gamOL_ARIMA.pred <- predict(gamOL,  newdata=test)
+  res.pred <- ts(c(res.ts, test$Load.1 - gamOL_ARIMA.pred),  frequency= 7)
+  res.refit <- Arima(res.pred, model=res.fit)
+
+  res.test <- tail(res.refit$fitted, nrow(test))
+
+  gamOL_ARIMA.pred <- gamOL_ARIMA.pred + res.test
+}
+```
+```{r include=FALSE}
+score.gamOL_ARIMA <- kaggle_score(gamOL_ARIMA.pred, test$Load.1)
+cat(score.gamOL_ARIMA)
+#Score Kaggle Officiel : 939
+```
+
+```{r include=FALSE}
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- gamOL_ARIMA.pred
+write.table(submit, file="Data/submit_GAM_OL_ARIMA.csv", quote=F, sep=",", dec='.',row.names = F)
+```
+
+**Kaggle Score for online learning GAM : * 723 * **
+Online learning has surprisingly not helped us improve our model. This may be due to a gam model that does not fit the new data very well. To learn more...
+### Aggregation of  experts
+
+```{r}
+gamANOVA.pred = read.csv2("Data/submit_GAM_Anova.csv",header=T,sep=',')$Load
+gamARIMA.pred = read.csv2("Data/submit_GAM_ARIMA.csv",header=T,sep=',')$Load
+gamOL.pred = read.csv2("Data/submit_GAM_OL_ARIMA.csv",header=T,sep=',')$Load
+rf.pred = read.csv2("Data/submit_randomForest.csv",header=T,sep=',')$Load
+xgb.pred = read.csv2("Data/submit_XGBoost.csv",header=T, sep=',')$Load
+
+experts <- cbind(gamANOVA.pred, gamARIMA.pred, gamOL.pred,
+                 rf.pred,xgb.pred)%>%as.matrix
+nom_exp <- c("gam", "gam_arima","gam_arima_online", "rf","boosting")
+colnames(experts) <- c("gam", "gamarima","gamarimaonline", "rf","boosting")
+mode(experts) <- "integer"
+
+y_label = test$Load.1[2:275]
+
+or <- oracle(Y=y_label, experts[1:274,])
+or$rmse  
+
+colnames(experts) <-  nom_exp
+rmse_exp <- apply(experts[1:274,], 2, rmse, actual=y_label)
+sort(rmse_exp)
+cumsum_exp <- apply(y_label-experts[1:274,], 2, cumsum)
+
+#Using oracle to know if the aggregate is relevant
+or <- oracle(Y=y_label, experts[1:274,])
+or$rmse
+
+#Doing the actual online prediction by aggregating experts
+#3 methods are used
+agg_mlpol_lgf<- mixture(Y = y_label, experts = experts[1:274,], model = "MLpol", loss.gradient=FALSE)
+summary(agg_mlpol_lgf)
+
+agg_mlpol_lgt <- mixture(Y = y_label, experts = experts[1:274,], model = "MLpol", loss.gradient=TRUE)
+summary(agg_mlpol_lgt)
+
+agg_boa <- mixture(Y = y_label, experts = experts[1:274,], model = "BOA", loss.gradient=TRUE)
+summary(agg_boa)
+
+#######bias correction
+experts_biais <- cbind(gamANOVA.pred, gamARIMA.pred, gamOL.pred,
+                 rf.pred,xgb.pred)%>%as.matrix
+nom_exp <- c("gam", "gam_arima","gam_arima_online", "rf","boosting")
+colnames(experts_biais) <- c("gam", "gamarima","gamarimaonline", "rf","boosting")
+mode(experts_biais) <- "integer"
+expertsM1000 <- experts_biais-1000
+expertsP1000 <- experts_biais+1000
+experts_biais <- cbind(experts_biais, expertsM1000, expertsP1000)
+colnames(experts_biais) <-c(nom_exp, paste0(nom_exp,  "M"), paste0(nom_exp,  "P"))
+
+
+cumsum_exp <- apply(y_label-experts_biais[1:274,], 2, cumsum)
+
+par(mfrow=c(1,1))
+K <-ncol(experts_biais)
+col <- rev(RColorBrewer::brewer.pal(n = max(min(K,11),4),name = "Spectral"))[1:min(K,11)]
+matplot(cumsum_exp, type='l', col=col, lty=1, lwd=2)
+par(new=T)
+
+legend("topleft", col=col, legend=c(colnames(experts_biais)),lty=1,
+       bty ="o",box.lty=2,box.col = "transparent",
+       cex=0.27,bg="transparent")
+
+
+or_biais <- oracle(Y=y_label, experts_biais[1:274,])
+or_biais$rmse
+
+agg_mlpol_lgf_biais<- mixture(Y = y_label, experts = experts_biais[1:274,], model = "MLpol", loss.gradient=FALSE)
+summary(agg_mlpol_lgf_biais)
+
+agg_mlpol_lgt_biais <- mixture(Y = y_label, experts = experts_biais[1:274,], model = "MLpol", loss.gradient=TRUE)
+summary(agg_mlpol_lgt_biais)
+
+agg_boa_biais <- mixture(Y = y_label, experts = experts_biais[1:274,], model = "BOA", loss.gradient=TRUE)
+summary(agg_boa_biais)
+
+plot(agg_mlpol_lgt_biais)
+
+
+
+submit <- read_delim( file="Data/sample_submission.csv", delim=",")
+submit$Load <- rbind(agg_mlpol_lgt$prediction,gamARIMA.pred[275])
+write.table(submit, file="Data/submit_Aggregation_Experts.csv", quote=F, sep=",", dec='.',row.names = F)
+
+```
+
+```{r include=FALSE}
+aggregation.pred <- rbind(agg_mlpol_lgt$prediction,gamARIMA.pred[275])
+score.aggregation <- kaggle_score(gamOL_ARIMA.pred, test$Load.1)
+cat(score.gamOL_ARIMA)
+#Score Kaggle Officiel : 939
+```
+**Kaggle Score for Aggregation of Experts : * 744 * **
+Aggregation of experts has surprisingly not helped us improve our model. It can be due to a bad choice of experts.
